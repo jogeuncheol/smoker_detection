@@ -60,8 +60,8 @@ def main(_argv):
     session = InteractiveSession(config=config)
     STRIDES, ANCHORS, NUM_CLASS, XYSCALE = utils.load_config(FLAGS)
     input_size = FLAGS.size
-    # video_path = FLAGS.video
-    video_path = "E:/workspace/video_sample/day_smoke.mp4"
+    video_path = FLAGS.video
+    # video_path = "E:/workspace/video_sample/day_smoke.mp4"
 
     # load tflite model if flag is set
     if FLAGS.framework == 'tflite':

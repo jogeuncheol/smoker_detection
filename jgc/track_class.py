@@ -46,17 +46,13 @@ if __name__ == "__main__":
     dic = t_dict.t_dict
     for t_id in range(1, 10):
         t_value = Tracker()
-        t_list = []
-        t_list.append([t_id, 100, 20, 20])
-        t_list.append(0)
-        t_list.append(30)
-        t_list.append([50, 50, 100, 100])
-        t_list.append([80, 80, 40, 40])
+        t_list = [[t_id, 100, 20, 20], 0, 30, [50, 50, 100, 100], [80, 80, 40, 40]]
         t_value.set_data(t_list)
         t_dict.add_dict(t_id, t_value)
     t_dict.items()
     t_dict.del_dict(4)
     t_dict.items()
+    t_dict.t_dict[1].bbox = [1, 5, 6, 3]
     print("key is 1, value is {}".format(t_dict.t_dict[1]))
     print("key is 1, value.bbox is {}".format(t_dict.t_dict[1].bbox))
     print("key is 1, value.bbox[0] is {}".format(t_dict.t_dict[1].bbox[0]))

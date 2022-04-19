@@ -60,8 +60,8 @@ def main(_argv):
     session = InteractiveSession(config=config)
     STRIDES, ANCHORS, NUM_CLASS, XYSCALE = utils.load_config(FLAGS)
     input_size = FLAGS.size
-    video_path = FLAGS.video
-    # video_path = "E:/workspace/video_sample/day_smoke.mp4"
+    # video_path = FLAGS.video
+    video_path = "E:/workspace/video_sample/E_smoke.mp4"
 
     # load tflite model if flag is set
     if FLAGS.framework == 'tflite':
@@ -98,14 +98,18 @@ def main(_argv):
     outer_ROI = [0, 0, 0, 0]
     inner_ROI = [0, 0, 0, 0]
     bg = cv2.createBackgroundSubtractorMOG2(history=42, varThreshold=16, detectShadows=False)
+    bg2 = cv2.createBackgroundSubtractorMOG2(history=42, varThreshold=16, detectShadows=False)
     kg = cv2.createBackgroundSubtractorKNN(history=100, dist2Threshold=64, detectShadows=False)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)) # histogram equalization?
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     track_dict = {} # track object dictionary
+    stop_image = []
+    stop_flag = 0
     # while video is running
     while True:
         return_value, original_image = vid.read()
         frame = original_image
+        # original_image = cv2.resize(original_image, dsize=(960, 720))
         if return_value:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(frame)
@@ -260,17 +264,20 @@ def main(_argv):
             rx = lx + track_dict[t_id][5][2]
             ly = track_dict[t_id][5][1]
             ry = ly + track_dict[t_id][5][3]
-            if track_dict[t_id][1] == 1 and (LX > lx or LY > ly or RX < rx or RY < ry):
+            print(bbox)
+            print(x, y, x+w, y+ly)
+            print(LX, LY, RX, RY)
+            if track_dict[t_id][1] == 1 and (LX > x or LY > y or RX < x + w):# or RY < y + ly):
                 track_dict[t_id] = track_dict[t_id][0], 0, 1, (h * 0.5) / 3, track_dict[t_id][4], track_dict[t_id][5]
-                if t_id == 11:
-                    print(track_dict[t_id])
+
         # [add] calculate ROI
             if not track_dict[t_id][1]:
+                stop_flag = 0
                 is_set_ROI = 1
                 R = track_dict[t_id][3]
                 outer_ROI = [(x - R), (y - R), (w + (2 * R)), (3 * R)]
                 # track_dict[t_id] = track_dict[t_id][0], 1, track_dict[t_id][2], R, outer_ROI, track_dict[t_id][5]
-                track_dict.update({t_id:(track_dict[t_id][0], 1, track_dict[t_id][2], R, outer_ROI, track_dict[t_id][5])})
+                track_dict.update({t_id: (track_dict[t_id][0], 1, track_dict[t_id][2], R, outer_ROI, track_dict[t_id][5])})
                 Rx = x - R
                 Ry = y - R
                 Rw = w + (2 * R)
@@ -341,6 +348,13 @@ def main(_argv):
         if not FLAGS.dont_show:
             cv2.imshow("Output Video", result)
 
+        # resize = cv2.resize(original_image, dsize=(960, 480))
+        gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (5, 5), 0)
+        # bg_mask = bg.apply(gray, 0, 0.005)
+        # background_img = bg.getBackgroundImage()
+        bg2mask = bg2.apply(gray, 0, 0.00001)
+        bg2image = bg2.getBackgroundImage()
         # [add] crop image
         if is_set_ROI:
             x = 0
@@ -353,14 +367,28 @@ def main(_argv):
             h = int(outer_ROI[3])
             ROI_image = original_image[y:y+h, x:x+w]
             gray = cv2.cvtColor(ROI_image, cv2.COLOR_BGR2GRAY)
+            ROI_bg = bg2image[y:y+h, x:x+w]
+            # ROI_diff = cv2.absdiff(gray, ROI_bg)
+            # ret, ROI_diff = cv2.threshold(ROI_diff, 16, 255, cv2.THRESH_BINARY)
+            cv2.imshow("slow_update:0.00001 background_mask", bg2mask[y:y+h, x:x+w])
+
+            bg1_mask = bg.apply(gray, 0, 0.005)
+            background1_img = bg.getBackgroundImage()
+            cv2.imshow("default_update:0.005 mask_image", bg1_mask)
+
+            cv2.imshow("slow_default bitwise_AND", cv2.bitwise_and(bg2mask[y:y+h, x:x+w], bg1_mask))
+
+            # bg2mask = bg2.apply(gray, 0, 0.00001)
+            # bg2image = bg2.getBackgroundImage()
+
             # cv2.imshow("ROI_Image : gray", gray)
-            gray = cv2.add(gray, 50)
-            cl_image = clahe.apply(gray)
-            cl_image = cv2.equalizeHist(gray) # histogram equalization
+            # gray = cv2.add(gray, 50)
+            # cl_image = clahe.apply(gray)
+            # cl_image = cv2.equalizeHist(gray) # histogram equalization
             #cv2.imshow("cl_image", cl_image)
-            cl_image = cv2.resize(cl_image, dsize=(127, 127)) # dsize=(int(w / 2), int(w / 2))
-            gaussian_blur = cv2.GaussianBlur(gray, (5, 5), 0)
-            gaussian_blur_cl = cv2.GaussianBlur(cl_image, (5, 5), 0)
+            # cl_image = cv2.resize(cl_image, dsize=(127, 127)) # dsize=(int(w / 2), int(w / 2))
+            # gaussian_blur = cv2.GaussianBlur(gray, (5, 5), 0)
+            # gaussian_blur_cl = cv2.GaussianBlur(cl_image, (5, 5), 0)
             # gaussian_blur = cv2.resize(gaussian_blur, dsize=(int(w/2), int(w/2)))
             # gaussian_blur_cl = cv2.resize(gaussian_blur_cl, dsize=(int(w / 2), int(w / 2)))
             # log_img = cv2.Laplacian(gaussian_blur, ddepth=-1, ksize=5)
@@ -368,14 +396,34 @@ def main(_argv):
             # cv2.imshow("ROI_Image : gaussian cl", gaussian_blur_cl)
 
         # [add] use GMM get background mask and background image
-            bg_mask = bg.apply(gaussian_blur_cl)
-            background_img = bg.getBackgroundImage()
+            # bg_mask = bg.apply(gaussian_blur_cl)
+            # background_img = bg.getBackgroundImage()
+            # if frame_num % 20 == 0:
+            #     stop_flag = 1
+            #     stop_image = background_img
+            # elif stop_flag == 1:
+            #     diff_img = cv2.absdiff(gray, stop_image)
+            #     ret, diff_img = cv2.threshold(diff_img, 12, 255, cv2.THRESH_BINARY)
+            #     cv2.imshow("test", diff_img)
             # bg_mask_open = cv2.morphologyEx(bg_mask, cv2.MORPH_OPEN, kernel)
             # medianBlur = cv2.medianBlur(bg_mask_open, 3)
-            #cv2.imshow("ROI mask", cv2.resize(bg_mask, dsize=(w, h)))
-            # cv2.imshow("ROI mask", bg_mask_open)
-            #cv2.imshow("ROI background", background_img)
+            # cv2.imshow("ROI mask", cv2.resize(bg_mask, dsize=(w, h)))
+            # cv2.imshow("ROI mask", bg_mask)
+            # cv2.imshow("ROI background", background_img)
             # cv2.imshow("LoG", log_img)
+        # if stop_flag == 0 and frame_num % 100 == 0:
+        #     stop_flag = 1
+        #     stop_image = background_img
+        # elif stop_flag == 1:
+        #     # blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        #     diff_img = cv2.absdiff(gray, stop_image)
+        #     ret, diff_img = cv2.threshold(diff_img, 50, 255, cv2.THRESH_BINARY)
+        #     open = cv2.morphologyEx(diff_img, cv2.MORPH_OPEN, kernel)
+        #     # cv2.imshow("ROI background", open)
+        # cv2.imshow("ROI mask", bg_mask)
+        # cv2.imshow("bg_image", background_img)
+        cv2.imshow("bg2mask", bg2mask)
+        # cv2.imshow("bg2_image", bg2image)
 
         # if output flag is set, save video file
         if FLAGS.output:

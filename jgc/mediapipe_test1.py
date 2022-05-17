@@ -2,6 +2,7 @@
 # Pose tutorial
 # body landmarks
 # 0 : nose
+# 2, 5 : left_eye, right_eye
 # 7, 8: left_ear, right_ear
 # 9 : mouth_left
 # 10: mouth_right
@@ -21,7 +22,7 @@ mp_pose = mp.solutions.pose
 
 bg = cv2.createBackgroundSubtractorMOG2(history=42, varThreshold=16, detectShadows=False)
 bg2 = cv2.createBackgroundSubtractorMOG2(history=42, varThreshold=16, detectShadows=False)
-kg = cv2.createBackgroundSubtractorKNN(history=100, dist2Threshold=64, detectShadows=True)
+kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=64, detectShadows=True)
 # kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=16, detectShadows=False)
 kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
@@ -42,6 +43,10 @@ with mp_pose.Pose(
     frame = 0
     queue = Queue(3)
     dq = deque()
+    hand_action_ttl = []
+    hand_mouth_flag = False
+    hand_mouth_ttl = 0
+    hand_select = ''
     while video.isOpened():
         success, ori_image = video.read()
         if not success:
@@ -71,6 +76,8 @@ with mp_pose.Pose(
         L_shoulder = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER]
         L_ear = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_EAR]
         R_ear = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_EAR]
+        L_eye = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_EYE]
+        R_eye = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_EYE]
 
         # ear-nose 머리의 방향 계산
         # 좌측 : 0, 우측 : 1, 양측 : -1
@@ -135,6 +142,34 @@ with mp_pose.Pose(
             landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
         )
 
+        # 손 - 얼굴 거리, 지속시간
+        # hand_mouth_flag : 손-입, 어깨-입 거리 차이. 손-입이 더 가까우면 True
+        # hand_mouth_ttl : 손-입 거리가 가까울 때 시간 기록. 이 시간이 두 번 이상 일정하다면 흡연중
+        r_hand_coord = [int(R_hand.x * image_width), int(R_hand.y * image_height)]
+        l_hand_coord = [int(L_hand.x * image_width), int(L_hand.y * image_height)]
+        r_mouth_coord = [int(R_mouth.x * image_width), int(R_mouth.y * image_height)]
+        l_mouth_coord = [int(L_mouth.x * image_width), int(L_mouth.y * image_height)]
+        # r_dist = (r_hand_coord[0] - r_mouth_coord[0]) ** 2 + (r_hand_coord[1] - r_mouth_coord[1]) ** 2
+        # l_dist = (l_hand_coord[0] - l_mouth_coord[0]) ** 2 + (l_hand_coord[1] - l_mouth_coord[1]) ** 2
+        if not hand_mouth_flag:
+            if abs(r_hand_coord[1] - r_mouth_coord[1]) < abs(R_SHOULDER_coord[1] - r_mouth_coord[1]):
+                hand_mouth_ttl = time.time()
+                hand_mouth_flag = True
+                hand_select = 'r'
+            elif abs(l_hand_coord[1] - l_mouth_coord[1]) < abs(L_SHOULDER_coord[1] - l_mouth_coord[1]):
+                hand_mouth_ttl = time.time()
+                hand_mouth_flag = True
+                hand_select = 'l'
+        else:
+            if hand_select == 'r' and abs(r_hand_coord[1] - r_mouth_coord[1]) > abs(R_SHOULDER_coord[1] - r_mouth_coord[1]):
+                hand_action_ttl.append(hand_mouth_ttl - time.time())
+                hand_mouth_ttl = time.time()
+                hand_mouth_flag = False
+            elif hand_select == 'l' and abs(l_hand_coord[1] - l_mouth_coord[1]) > abs(L_SHOULDER_coord[1] - l_mouth_coord[1]):
+                hand_action_ttl.append(hand_mouth_ttl - time.time())
+                hand_mouth_ttl = time.time()
+                hand_mouth_flag = False
+
         # GMM 적용 시점. ROI 생존시간이 5 이상일때 적용
         th_image = []
         if (time.time() - ROI_ttl) > 5:
@@ -151,86 +186,116 @@ with mp_pose.Pose(
             th_image = cv2.medianBlur(th_image, ksize=3)
             # cv2.imshow('th_image', th_image)
 
-            # smoke detector
-            conv_image = cv2.resize(th_image, dsize=(100, 100))
-            retn, conv_image = cv2.threshold(conv_image, thresh=125, maxval=255, type=cv2.THRESH_BINARY)
-            # cv2.imshow('100x100', conv_image)
-            # 5 x 5 영역씩 훑어보면서 밀도 계산 후 위치 추정을 통해 연기인지 구분
-            smoke_map = []
-            for i in range(0, 100, 5):
-                line = []
-                for j in range(0, 100, 5):
-                    count = 0
-                    for k in range(5):
-                        for l in range(5):
-                            if conv_image[i + k][j + l] > 125:
-                                count += 1
-                    if count > 12:
-                        line.append(255)
-                    else:
-                        line.append(0)
-                smoke_map.append(line)
-            np_smoke_map_image = np.array(smoke_map).astype(np.uint8)
-            resize_smoke_map = cv2.resize(np_smoke_map_image, dsize=(outer_ROI[2], outer_ROI[3]))
-            cv2.imshow('smoke_map', resize_smoke_map)
+            if len(hand_action_ttl) > 2 and abs(hand_action_ttl[-1] - hand_action_ttl[-2]) < 5:
+                # smoke detector
+                conv_image = cv2.resize(th_image, dsize=(100, 100))
+                retn, conv_image = cv2.threshold(conv_image, thresh=125, maxval=255, type=cv2.THRESH_BINARY)
+                # cv2.imshow('100x100', conv_image)
+                # 5 x 5 영역씩 훑어보면서 밀도 계산 후 위치 추정을 통해 연기인지 구분
+                smoke_map = []
+                smoke_map_append = smoke_map.append
+                for i in range(0, 95, 5):
+                    line = []
+                    line_append = line.append
+                    for j in range(0, 95, 5):
+                        count = 0
+                        for k in range(5):
+                            for l in range(5):
+                                if conv_image[i + k][j + l] > 125:
+                                    count += 1
+                        if count > 12:
+                            line_append(255)
+                        else:
+                            line_append(0)
+                    smoke_map_append(line)
+                np_smoke_map_image = np.array(smoke_map).astype(np.uint8)
+                resize_smoke_map = cv2.resize(np_smoke_map_image, dsize=(outer_ROI[2], outer_ROI[3]))
+                cv2.imshow('smoke_map', resize_smoke_map)
 
-            # 머리 방향에 따른 mask nose_x 대신 어깨 y 축 기준으로 수정해야 할듯
-            # smoke_map_mask_255 = np.ones((outer_ROI[2], outer_ROI[3]), dtype=np.uint8) * 255
-            smoke_map_mask = np.ones((outer_ROI[2], outer_ROI[3]), dtype=np.uint8) * 255
-            direction_box = np.array(
-                [[0, 0],
-                 [nose_x - outer_ROI[0], 0],
-                 [nose_x - outer_ROI[0], outer_ROI[3]-1],
-                 [0, outer_ROI[3]-1]], dtype=np.int32
-            )
-            if head_direction == 0 or head_direction == 1:
-                cv2.fillPoly(smoke_map_mask, [direction_box], color=(0, 0, 0))
-            if head_direction == 0:
-                smoke_map_mask = cv2.flip(smoke_map_mask, 1)
-            cv2.imshow('smoke_map_mask', smoke_map_mask)
-            and_smoke_map = cv2.bitwise_and(resize_smoke_map, smoke_map_mask)
-            cv2.imshow('smoke_map_masking', and_smoke_map)
+                # 머리 방향에 따른 mask nose_x 대신 어깨 y 축 기준으로 수정해야 할듯
+                # smoke_map_mask_255 = np.ones((outer_ROI[2], outer_ROI[3]), dtype=np.uint8) * 255
+                smoke_map_mask = np.ones((outer_ROI[2], outer_ROI[3]), dtype=np.uint8) * 255
+                direction_box = np.array(
+                    [[0, 0],
+                     [nose_x - outer_ROI[0], 0],
+                     [nose_x - outer_ROI[0], outer_ROI[3]-1],
+                     [0, outer_ROI[3]-1]], dtype=np.int32
+                )
+                if head_direction == 0 or head_direction == 1:
+                    cv2.fillPoly(smoke_map_mask, [direction_box], color=(0, 0, 0))
+                if head_direction == 0:
+                    smoke_map_mask = cv2.flip(smoke_map_mask, 1)
+                cv2.imshow('smoke_map_mask', smoke_map_mask)
+                and_smoke_map = cv2.bitwise_and(resize_smoke_map, smoke_map_mask)
+                cv2.imshow('smoke_map_masking', and_smoke_map)
 
-            contours, _ = cv2.findContours(resize_smoke_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            # 코, 입 좌표를 포함하는 contour 찾기
-            Nose_coord = [Nose.x * image_width, Nose.y * image_height]
-            R_mouth_coord = [R_mouth.x * image_width, R_mouth.y * image_height]
-            L_mouth_coord = [L_mouth.x * image_width, L_mouth.y * image_height]
-            find_smoke_contour = []
-            for cnt in contours:
-                x, y, w, h = cv2.boundingRect(cnt)
-                if x < Nose_coord[0] - outer_ROI[0] < x+w and \
-                    y < Nose_coord[1] - outer_ROI[1] < y+h:
-                    find_smoke_contour.append(cnt)
-                if x < R_mouth_coord[0] - outer_ROI[0] < x+w and \
-                    y < R_mouth_coord[1] - outer_ROI[1] < y+h:
-                    find_smoke_contour.append(cnt)
-                if x < L_mouth_coord[0] - outer_ROI[0] < x+w and \
-                    y < L_mouth_coord[1] - outer_ROI[1] < y+h:
-                    find_smoke_contour.append(cnt)
+                # 얼굴 랜드마크 좌표를 기준으로 얼굴 마스크 생성
+                # 코 좌표가 중심인 정사각형 한 변의 길이는 코에서 귀(왼쪽, 오른쪽 길이 중 긴것을 선택)까지 거리의 2배
+                square_len = (outer_ROI[2] // 2) // 4
+                square_x = (Nose.x * image_width) - outer_ROI[0] - square_len
+                square_y = (Nose.y * image_height) - outer_ROI[1] - square_len
+                head_map_mask = np.zeros((outer_ROI[2], outer_ROI[3]), dtype=np.uint8)
+                head_mask_box = np.array(
+                    [[square_x, square_y],
+                     [square_x + square_len*2, square_y],
+                     [square_x + square_len*2, square_y + square_len*2],
+                     [square_x, square_y + square_len*2]], dtype=np.int32
+                )
+                cv2.fillPoly(head_map_mask, [head_mask_box], color=(255, 255, 255))
+                cv2.imshow('head_mask_map', head_map_mask)
 
-            # cv2.drawContours(crop_image, contours, -1, (0, 255, 0), 3)
-            # Nose_coord = [Nose.x * image_width, Nose.y * image_height]
-            # crop_nose_x = Nose_coord[0] - outer_ROI[0]
-            # crop_nose_y = Nose_coord[1] - outer_ROI[1]
-            # shortest_dist = []
-            # contour_arr = []
-            # for cnt in contours:
-            #     x, y, w, h = cv2.boundingRect(cnt)
-            #     if not shortest_dist:
-            #         shortest_dist.append(x)
-            #         shortest_dist.append(y)
-            #         contour_arr.append(cnt)
-            #     else:
-            #         dist1 = (crop_nose_x - shortest_dist[0])**2 + (crop_nose_y - shortest_dist[1])**2
-            #         dist2 = (crop_nose_x - x)**2 + (crop_nose_y - y)**2
-            #         if dist1 > dist2:
-            #             shortest_dist[0] = x
-            #             shortest_dist[1] = y
-            #             contour_arr.pop()
-            #             contour_arr.append(cnt)
-            cv2.drawContours(crop_image, contours, -1, (0, 255, 0), 2)
-            cv2.drawContours(crop_image, find_smoke_contour, -1, (255, 0, 0), 2)
+                contours, _ = cv2.findContours(resize_smoke_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                # 코, 입 좌표를 포함하는 contour 찾기
+                mouth_padding = 0
+                if head_direction == 0:
+                    mouth_padding = -10
+                elif head_direction == 1:
+                    mouth_padding = 10
+                Nose_coord = [Nose.x * image_width, Nose.y * image_height]
+                R_mouth_coord = [R_mouth.x * image_width, R_mouth.y * image_height]
+                L_mouth_coord = [L_mouth.x * image_width, L_mouth.y * image_height]
+                find_smoke_contour = []
+                for cnt in contours:
+                    x, y, w, h = cv2.boundingRect(cnt)
+                    if x < Nose_coord[0] + mouth_padding - outer_ROI[0] < x+w and \
+                        y < Nose_coord[1] - outer_ROI[1] < y+h:
+                        find_smoke_contour.append(cnt)
+                    if x < R_mouth_coord[0] + mouth_padding - outer_ROI[0] < x+w and \
+                        y < R_mouth_coord[1] - outer_ROI[1] < y+h:
+                        find_smoke_contour.append(cnt)
+                    if x < L_mouth_coord[0] + mouth_padding - outer_ROI[0] < x+w and \
+                        y < L_mouth_coord[1] - outer_ROI[1] < y+h:
+                        find_smoke_contour.append(cnt)
+
+                # cv2.drawContours(crop_image, contours, -1, (0, 255, 0), 3)
+                # Nose_coord = [Nose.x * image_width, Nose.y * image_height]
+                # crop_nose_x = Nose_coord[0] - outer_ROI[0]
+                # crop_nose_y = Nose_coord[1] - outer_ROI[1]
+                # shortest_dist = []
+                # contour_arr = []
+                # for cnt in contours:
+                #     x, y, w, h = cv2.boundingRect(cnt)
+                #     if not shortest_dist:
+                #         shortest_dist.append(x)
+                #         shortest_dist.append(y)
+                #         contour_arr.append(cnt)
+                #     else:
+                #         dist1 = (crop_nose_x - shortest_dist[0])**2 + (crop_nose_y - shortest_dist[1])**2
+                #         dist2 = (crop_nose_x - x)**2 + (crop_nose_y - y)**2
+                #         if dist1 > dist2:
+                #             shortest_dist[0] = x
+                #             shortest_dist[1] = y
+                #             contour_arr.pop()
+                #             contour_arr.append(cnt)
+                cv2.drawContours(crop_image, contours, -1, (0, 255, 0), 2)
+                if time.time() - hand_mouth_ttl < 5 and not hand_mouth_flag:
+                    # contour가 얼굴에서 멀어진다?
+                    for cnt in find_smoke_contour:
+                        mt = cv2.moments(cnt)
+                        cx = int(mt['m10'] / mt['m00'])
+                        cy = int(mt['m01'] / mt['m00'])
+                        cv2.drawMarker(crop_image, (cx, cy), (0, 255, 255), markerType=cv2.MARKER_CROSS, markerSize=42)
+                    cv2.drawContours(crop_image, find_smoke_contour, -1, (255, 0, 0), 2)
 
             cv2.imshow('crop_image', crop_image)
 

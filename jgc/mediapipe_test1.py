@@ -51,7 +51,8 @@ with mp_pose.Pose(
         success, ori_image = video.read()
         if not success:
             print("video.read fail.")
-            continue
+            # continue
+            break
         image = ori_image.copy()
         image = cv2.resize(image, dsize=(960, 480))
         image_height, image_width, _ = image.shape
@@ -304,9 +305,9 @@ with mp_pose.Pose(
 
         cv2.imshow('MediaPipe Pose', image)
         # cv2.imshow('BG_sub 0.00001', bg_mask)
-        cv2.waitKey(0)
+        # cv2.waitKey(0)
         if cv2.waitKey(5) & 0xFF == 27:
             break
         frame += 1
-
-video.release()
+    cv2.destroyAllWindows()
+    video.release()

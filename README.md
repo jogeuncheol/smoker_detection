@@ -11,6 +11,7 @@
 - [Danilchenko PV, Romanov NS, "Neural networks application to detect the facts of smoking in video surveillance systems", Journal of Physics: Conference Series, Vol. 1794, Iss.1, (Feb 2021).](https://iopscience.iop.org/article/10.1088/1742-6596/1794/1/012002)
 - [중부일보 - 융기원, 아동시설 인근 흡연 방지 프로젝트 돌입… '미소만 피워주세요’ (2021)](http://www.joongboo.com/news/articleView.html?idxno=363519088)
 - [연합뉴스 - 어린이집 앞서 흡연했더니 영상 속 아이 나타나 '콜록콜록' (2021)](https://www.yna.co.kr/view/AKR20211228150200061?input=1195m)
+- [Convolutional Neural Networks Explained (CNN Visualized)](https://www.youtube.com/watch?v=pj9-rr1wDhM)
 
 Huge shoutout goes to hunglc007 and nwojke for creating the backbones of this repository:
 - [tensorflow-yolov4-tflite](https://github.com/hunglc007/tensorflow-yolov4-tflite)

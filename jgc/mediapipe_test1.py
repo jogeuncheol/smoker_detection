@@ -179,14 +179,19 @@ with mp_pose.Pose(
                 hand_action_ttl.append(hand_mouth_ttl - time.time())
                 hand_mouth_ttl = time.time()
                 hand_mouth_flag = False
+                if Smoker.if_in_dict(1):
+                    Smoker.smoker_dictionary[1].frame_rate = frame_rate
+                    Smoker.smoker_dictionary[1].smoking_point += 2
+                    print("????" + str(Smoker.smoker_dictionary[1].smoking_point))
             elif hand_select == 'l' and abs(l_hand_coord[1] - l_mouth_coord[1]) > abs(L_SHOULDER_coord[1] - l_mouth_coord[1]):
                 hand_action_ttl.append(hand_mouth_ttl - time.time())
                 hand_mouth_ttl = time.time()
                 hand_mouth_flag = False
+                if Smoker.if_in_dict(1):
+                    Smoker.smoker_dictionary[1].frame_rate = frame_rate
+                    Smoker.smoker_dictionary[1].smoking_point += 2
+                    print("????" + str(Smoker.smoker_dictionary[1].smoking_point))
             smoking_range = frame
-            if Smoker.if_in_dict(1):
-                Smoker.smoker_dictionary[1].frame_rate = frame_rate
-                Smoker.smoker_dictionary[1].smoking_point += 2
 
         # GMM 적용 시점. ROI 생존시간이 4 이상일때 적용
         # Smoking 객체 생성 시점. 객체추적(deepSORT) t_id를 key로 사용
@@ -335,11 +340,12 @@ with mp_pose.Pose(
                         cv2.drawMarker(crop_image, (cx, cy), (0, 255, 255), markerType=cv2.MARKER_CROSS, markerSize=42)
                         if cx < square_x or cx > (square_x + square_len * 2) or\
                                 cy < square_y or cy > (square_y + square_len * 2):
-                            if not Smoker.smoker_dictionary[1].smoking_flag:
-                                Smoker.smoker_dictionary[1].smoking_point += 5
-                                Smoker.smoker_dictionary[1].smoking_count += 1
-                                Smoker.smoker_dictionary[1].smoking_flag = True
-                            color = (0, 0, 255)
+                            if L_SHOULDER_coord[1] > cy:
+                                if not Smoker.smoker_dictionary[1].smoking_flag:
+                                    Smoker.smoker_dictionary[1].smoking_point += 5
+                                    # Smoker.smoker_dictionary[1].smoking_count += 1
+                                    Smoker.smoker_dictionary[1].smoking_flag = True
+                                color = (0, 0, 255)
                     cv2.drawContours(crop_image, find_smoke_contour, -1, color, 2)
                     # smoking_range += 1
                     print(Smoker.smoker_dictionary[1].smoking_point)
@@ -357,7 +363,14 @@ with mp_pose.Pose(
                         Smoker.smoker_dictionary[1].smoking_flag = False
             else:
                 pass
-
+            # if Smoker.if_in_dict(1):
+            #     if Smoker.smoker_dictionary[1].smoking_count > 3:
+            #         cv2.putText(
+            #             image,
+            #             Smoker.smoker_dictionary[1].ROI_message,
+            #             (int(outer_ROI[0]), int(outer_ROI[1] - 10)), 0, 0.75,
+            #             (0, 0, 255),
+            #             2)
             cv2.imshow('crop_image', crop_image)
         else:
             if Smoker.if_in_dict(1):

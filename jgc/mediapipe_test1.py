@@ -21,13 +21,13 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
 
-bg = cv2.createBackgroundSubtractorMOG2(history=42, varThreshold=16, detectShadows=False)
+bg = cv2.createBackgroundSubtractorMOG2(history=200, varThreshold=16, detectShadows=False)
 bg2 = cv2.createBackgroundSubtractorMOG2(history=42, varThreshold=16, detectShadows=False)
-kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=64, detectShadows=True)
+kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=64, detectShadows=False)
 # kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=16, detectShadows=False)
 kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
-video_path = "E:/workspace/video_sample/E_smoke.mp4"
+video_path = "E:/workspace/video_sample/dom2.mp4"
 try:
     video = cv2.VideoCapture(int(video_path))
 except:
@@ -62,7 +62,7 @@ with mp_pose.Pose(
         try:
             frame_rate = video.get(cv2.CAP_PROP_FPS)
         except:
-            frame_rate = 48
+            frame_rate = 24
         image = ori_image.copy()
         image = cv2.resize(image, dsize=(960, 480))
         cut_image = image.copy()
@@ -172,15 +172,12 @@ with mp_pose.Pose(
                 hand_mouth_ttl = time.time()
                 hand_mouth_flag = True
                 hand_select = 'l'
-            if Smoker.if_in_dict(1):
-                Smoker.smoker_dictionary[1].frame_rate = frame_rate
         else:
             if hand_select == 'r' and abs(r_hand_coord[1] - r_mouth_coord[1]) > abs(R_SHOULDER_coord[1] - r_mouth_coord[1]):
                 hand_action_ttl.append(hand_mouth_ttl - time.time())
                 hand_mouth_ttl = time.time()
                 hand_mouth_flag = False
                 if Smoker.if_in_dict(1):
-                    Smoker.smoker_dictionary[1].frame_rate = frame_rate
                     Smoker.smoker_dictionary[1].smoking_point += 2
                     print("????" + str(Smoker.smoker_dictionary[1].smoking_point))
             elif hand_select == 'l' and abs(l_hand_coord[1] - l_mouth_coord[1]) > abs(L_SHOULDER_coord[1] - l_mouth_coord[1]):
@@ -188,7 +185,6 @@ with mp_pose.Pose(
                 hand_mouth_ttl = time.time()
                 hand_mouth_flag = False
                 if Smoker.if_in_dict(1):
-                    Smoker.smoker_dictionary[1].frame_rate = frame_rate
                     Smoker.smoker_dictionary[1].smoking_point += 2
                     print("????" + str(Smoker.smoker_dictionary[1].smoking_point))
             smoking_range = frame
@@ -197,7 +193,7 @@ with mp_pose.Pose(
         # Smoking 객체 생성 시점. 객체추적(deepSORT) t_id를 key로 사용
         th_image = []
         if (time.time() - ROI_ttl) > 4:
-            bg2_mask = kg.apply(gray, 0, 0.005)
+            bg2_mask = kg.apply(gray, 0, 0.025)
             sub_mask = cv2.bitwise_and(bg_mask, bg2_mask)
 
             # Smoker_dict에 t_id key가 없으면 추가
@@ -218,7 +214,7 @@ with mp_pose.Pose(
             th_image = cv2.medianBlur(th_image, ksize=3)
             # cv2.imshow('th_image', th_image)
 
-            if len(hand_action_ttl) > 2 and abs(hand_action_ttl[-1] - hand_action_ttl[-2]) < 5:
+            if len(hand_action_ttl) > 1 and abs(hand_action_ttl[-1] - hand_action_ttl[-2]) < 5:
                 # smoke detector
                 conv_image = cv2.resize(th_image, dsize=(100, 100))
                 retn, conv_image = cv2.threshold(conv_image, thresh=125, maxval=255, type=cv2.THRESH_BINARY)
@@ -263,14 +259,23 @@ with mp_pose.Pose(
                 # cv2.imshow('smoke_map_masking', and_smoke_map)
 
                 # 얼굴 랜드마크 좌표를 기준으로 얼굴 마스크 생성
-                # 코 좌표가 중심인 정사각형 한 변의 길이는 코에서 귀(왼쪽, 오른쪽 길이 중 긴것을 선택)까지 거리의 2배
                 square_len = (outer_ROI[2] // 2) // 4
-                square_x = (Nose.x * image_width) - outer_ROI[0] - square_len
-                square_y = (Nose.y * image_height) - outer_ROI[1] - square_len
+                # 코가 양쪽 귀 보다 튀어나왔다면 방향에 따라 코의 x 좌표를 square_x 로 설정함. <-- bug
+                if nose_x < r_ear_x and nose_x < l_ear_x:
+                    print("nose_x < ear")
+                    square_x = (Nose.x * image_width) - outer_ROI[0]
+                    square_y = (Nose.y * image_height) - outer_ROI[1]
+                elif nose_x > r_ear_x and nose_x > l_ear_x:
+                    print("nose_x > ear")
+                    square_x = (Nose.x * image_width) - outer_ROI[0] - square_len*2
+                    square_y = (Nose.y * image_height) - outer_ROI[1] - square_len*2
+                else:
+                    square_x = (Nose.x * image_width) - outer_ROI[0] - square_len
+                    square_y = (Nose.y * image_height) - outer_ROI[1] - square_len
                 head_map_mask = np.zeros((outer_ROI[2], outer_ROI[3]), dtype=np.uint8)
                 head_mask_box = np.array(
-                    [[square_x, square_y],
-                     [square_x + square_len*2, square_y],
+                    [[square_x, square_y - square_len//2],
+                     [square_x + square_len*2, square_y - square_len//2],
                      [square_x + square_len*2, square_y + square_len*2],
                      [square_x, square_y + square_len*2]], dtype=np.int32
                 )
@@ -339,7 +344,7 @@ with mp_pose.Pose(
                         cy = int(mt['m01'] / mt['m00'])
                         cv2.drawMarker(crop_image, (cx, cy), (0, 255, 255), markerType=cv2.MARKER_CROSS, markerSize=42)
                         if cx < square_x or cx > (square_x + square_len * 2) or\
-                                cy < square_y or cy > (square_y + square_len * 2):
+                                cy < square_y - square_len//2 or cy > (square_y + square_len * 2): # <<-- fix need
                             if L_SHOULDER_coord[1] > cy:
                                 if not Smoker.smoker_dictionary[1].smoking_flag:
                                     Smoker.smoker_dictionary[1].smoking_point += 5
@@ -347,7 +352,6 @@ with mp_pose.Pose(
                                     Smoker.smoker_dictionary[1].smoking_flag = True
                                 color = (0, 0, 255)
                     cv2.drawContours(crop_image, find_smoke_contour, -1, color, 2)
-                    # smoking_range += 1
                     print(Smoker.smoker_dictionary[1].smoking_point)
                     print(Smoker.smoker_dictionary[1].ROI_message)
                     Smoker.smoker_dictionary[1].is_smoking()
@@ -359,8 +363,9 @@ with mp_pose.Pose(
                         2)
                 else:
                     if Smoker.if_in_dict(1):
-                        Smoker.smoker_dictionary[1].smoking_point = 0
-                        Smoker.smoker_dictionary[1].smoking_flag = False
+                        if (frame - smoking_range) > (frame_rate):
+                            Smoker.smoker_dictionary[1].smoking_point = 0
+                            Smoker.smoker_dictionary[1].smoking_flag = False
             else:
                 pass
             # if Smoker.if_in_dict(1):

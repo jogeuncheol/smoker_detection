@@ -4,6 +4,7 @@
 - [Google Drive](https://drive.google.com/drive/folders/1cqat0OdTLCmOEccb1HlK0f0VPXVjx8-O?usp=sharing)
 
 ### References
+- [Google Tensorflow Image Classification Tutorials](https://www.tensorflow.org/tutorials/images/classification?hl=ko)
 - [kaggle Cigarette Smoker Detection :: 흡연자 이미지](https://www.kaggle.com/datasets/vitaminc/cigarette-smoker-detection)
 - [yolov4-deepsort](https://github.com/theAIGuysCode/yolov4-deepsort)
 - [이종석, 이현재, 이동규, 오승준, “흡연자 검출을 위한 새로운 방법”, 한국통신학회논문지, Volume 41 Issue 9, Pages.1120-1131, (2016).](https://koreascience.or.kr/article/JAKO201631261653681.page)

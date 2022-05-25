@@ -38,7 +38,7 @@ class Smoking:
         self.frame_rate = data_list[3]
 
     def is_smoke(self, count_frame):
-        if count_frame < self.frame_rate*4:
+        if self.frame_rate*0.5 < count_frame < self.frame_rate*3.5:
             return True
         else:
             return False
@@ -48,7 +48,7 @@ class Smoking:
             self.ROI_message = "SMOKING"
         elif 1 < self.smoking_point < 5:
             self.ROI_message = "_WARNING_"
-        elif self.smoking_point > 6:
+        elif self.smoking_point > 5:
             self.ROI_message = "!!! SMOKING !!!"
         else:
             self.ROI_message = "---"

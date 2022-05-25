@@ -1,5 +1,8 @@
 # Smoker_Detection::sniffing
 
+### Smoking Training Model
+- [Google Drive](https://drive.google.com/drive/folders/1cqat0OdTLCmOEccb1HlK0f0VPXVjx8-O?usp=sharing)
+
 ### References
 - [kaggle Cigarette Smoker Detection :: 흡연자 이미지](https://www.kaggle.com/datasets/vitaminc/cigarette-smoker-detection)
 - [yolov4-deepsort](https://github.com/theAIGuysCode/yolov4-deepsort)

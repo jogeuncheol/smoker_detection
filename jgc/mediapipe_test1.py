@@ -17,6 +17,7 @@ import time
 from queue import Queue
 from collections import deque
 import smoker
+import classification
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
@@ -27,7 +28,9 @@ kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=64, detectShad
 # kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=16, detectShadows=False)
 kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
-video_path = "E:/workspace/video_sample/dom2.mp4"
+video_path = "E:/workspace/video_sample/room2.mp4"
+video_name = video_path.split('/')[-1].split('.')[0]
+print(video_name)
 try:
     video = cv2.VideoCapture(int(video_path))
 except:
@@ -53,6 +56,7 @@ with mp_pose.Pose(
     Smoker = smoker.Smoker()
     smoker_dict = Smoker.smoker_dictionary
     Smoking = 0
+    class_model = classification.Model()
     while video.isOpened():
         success, ori_image = video.read()
         if not success:
@@ -262,11 +266,9 @@ with mp_pose.Pose(
                 square_len = (outer_ROI[2] // 2) // 4
                 # 코가 양쪽 귀 보다 튀어나왔다면 방향에 따라 코의 x 좌표를 square_x 로 설정함. <-- bug
                 if nose_x < r_ear_x and nose_x < l_ear_x:
-                    print("nose_x < ear")
                     square_x = (Nose.x * image_width) - outer_ROI[0]
                     square_y = (Nose.y * image_height) - outer_ROI[1]
                 elif nose_x > r_ear_x and nose_x > l_ear_x:
-                    print("nose_x > ear")
                     square_x = (Nose.x * image_width) - outer_ROI[0] - square_len*2
                     square_y = (Nose.y * image_height) - outer_ROI[1] - square_len*2
                 else:
@@ -361,6 +363,10 @@ with mp_pose.Pose(
                         (int(outer_ROI[0]), int(outer_ROI[1] - 10)), 0, 0.75,
                         color,
                         2)
+                    if class_model.image_classification(ROI_cut_image):
+                        cv2.imshow('SMOKING', ROI_cut_image)
+                        # path = './data/cap/' + video_name + str(frame) + '.jpg'
+                        # cv2.imwrite(path, ROI_cut_image)
                 else:
                     if Smoker.if_in_dict(1):
                         if (frame - smoking_range) > (frame_rate):
@@ -381,7 +387,7 @@ with mp_pose.Pose(
             if Smoker.if_in_dict(1):
                 Smoker.del_dict(1)
 
-            # path = './data/cap/' + str(frame) + '.jpg'
+            # path = './data/cap/' + video_name + str(frame) + '.jpg'
             # cv2.imwrite(path, ROI_cut_image)
 
         cv2.imshow('MediaPipe Pose', image)

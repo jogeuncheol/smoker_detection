@@ -28,7 +28,7 @@ kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=64, detectShad
 # kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=16, detectShadows=False)
 kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
-video_path = "E:/workspace/video_sample/room2.mp4"
+video_path = "E:/workspace/video_sample/dom2.mp4"
 video_name = video_path.split('/')[-1].split('.')[0]
 print(video_name)
 try:
@@ -363,8 +363,8 @@ with mp_pose.Pose(
                         (int(outer_ROI[0]), int(outer_ROI[1] - 10)), 0, 0.75,
                         color,
                         2)
-                    if class_model.image_classification(ROI_cut_image):
-                        cv2.imshow('SMOKING', ROI_cut_image)
+                    # if class_model.image_classification(ROI_cut_image):
+                    #     cv2.imshow('SMOKING', ROI_cut_image)
                         # path = './data/cap/' + video_name + str(frame) + '.jpg'
                         # cv2.imwrite(path, ROI_cut_image)
                 else:
@@ -382,6 +382,8 @@ with mp_pose.Pose(
             #             (int(outer_ROI[0]), int(outer_ROI[1] - 10)), 0, 0.75,
             #             (0, 0, 255),
             #             2)
+            if class_model.image_classification(ROI_cut_image):
+                cv2.imshow('SMOKING', ROI_cut_image)
             cv2.imshow('crop_image', crop_image)
         else:
             if Smoker.if_in_dict(1):
@@ -392,7 +394,7 @@ with mp_pose.Pose(
 
         cv2.imshow('MediaPipe Pose', image)
         # cv2.imshow('BG_sub 0.00001', bg_mask)
-        # cv2.waitKey(0)
+        cv2.waitKey(0)
         if cv2.waitKey(5) & 0xFF == 27:
             break
         frame += 1

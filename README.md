@@ -1,12 +1,13 @@
 # Smoker_Detection::sniffing
 
 ### Python File
+- [project.py](https://github.com/jogeuncheol/smoker_detection/blob/main/jgc/project.py) :: main file
 - [smoker.py](https://github.com/jogeuncheol/smoker_detection/blob/main/jgc/smoker.py) :: class::Smoker:흡연 중인 객체를 저장하기위한 Dictionary. class::Smoking:흡연 객체의 데이터를 저장, 흡연 판단.
 - [classification.py](https://github.com/jogeuncheol/smoker_detection/blob/main/jgc/classification.py) :: 학습된 모델을 불러와 이미지 분류를 수행.
 - [Data_Generator.py](https://github.com/jogeuncheol/smoker_detection/blob/main/jgc/Data_Generator.py) :: 데이터를 생성하기위한 스크립트. Google MediaPipe를 활용해 얼굴을 중심으로 한 이미지를 저장함
 
 ### Smoking Training Model
-- [Google Drive](https://drive.google.com/drive/folders/1cqat0OdTLCmOEccb1HlK0f0VPXVjx8-O?usp=sharing)
+- [Google Drive](https://drive.google.com/drive/folders/1CPePN3mbyy4QFz2AgaK-cmf-6M-scXXh?usp=sharing)
 
 ### References
 - [Google Tensorflow Image Classification Tutorials](https://www.tensorflow.org/tutorials/images/classification?hl=ko)

@@ -9,6 +9,9 @@
 ### Smoking Training Model
 - [Google Drive](https://drive.google.com/drive/folders/1CPePN3mbyy4QFz2AgaK-cmf-6M-scXXh?usp=sharing)
 
+### Video
+- [시연 영상](https://youtu.be/csSh8BIgHlA)
+
 ### References
 - [Google Tensorflow Image Classification Tutorials](https://www.tensorflow.org/tutorials/images/classification?hl=ko)
 - [kaggle Cigarette Smoker Detection :: 흡연자 이미지](https://www.kaggle.com/datasets/vitaminc/cigarette-smoker-detection)

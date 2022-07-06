@@ -6,8 +6,8 @@
 - [classification.py](https://github.com/jogeuncheol/smoker_detection/blob/main/jgc/classification.py) :: 학습된 모델을 불러와 이미지 분류를 수행.
 - [Data_Generator.py](https://github.com/jogeuncheol/smoker_detection/blob/main/jgc/Data_Generator.py) :: 데이터를 생성하기위한 스크립트. Google MediaPipe를 활용해 얼굴을 중심으로 한 이미지를 저장함
 
-### Smoking Training Model
-- [Google Drive](https://drive.google.com/drive/folders/1CPePN3mbyy4QFz2AgaK-cmf-6M-scXXh?usp=sharing)
+### Project PPT
+- [발표 자료](https://drive.google.com/file/d/1ABvWZ41dxKG75UwEOn5C75avRw9RpxiG/view?usp=sharing)
 
 ### Video
 - [시연 영상](https://youtu.be/csSh8BIgHlA)
